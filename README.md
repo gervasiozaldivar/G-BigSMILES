@@ -39,6 +39,8 @@ The installation procedure outlined below is generally applicable across operati
 
 This package is implemented entirely in Python. However, it has a dependency on RDKit. The recommended and easiest method for installing RDKit is via pip and PyPI.
 
+⚠️ This package requires Python 3.10 or higher.
+
 To install this package itself, use pip:
 
 ```shell
