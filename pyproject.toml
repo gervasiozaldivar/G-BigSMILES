@@ -13,7 +13,7 @@ name = "gbigsmiles"
 description = "Bigsmiles extension handling the generation of ensemble smiles strings."
 authors = [
   { name = "Ludwig Schneider", email = "ludwigschneider@uchicago.edu" },
-  { name = "Gervasio Zaldivar", email = "g.zaldivar@nyu.edu@nyu.edu" },
+  { name = "Gervasio Zaldivar", email = "g.zaldivar@nyu.edu" },
   { name = "Yuan Tian", email = "yuan.tian@nyu.edu" },
 ]
 license = { text = "GPL-3.0", files = ["LICENSE.md"] }
