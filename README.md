@@ -73,13 +73,16 @@ jupyter-notebook SI.ipynb
 The terminal should display instructions on how to access the notebook in your web browser, or the browser might open automatically.
 
 Important: The SI.ipynb notebook is designed to be executed sequentially from top to bottom without skipping any cells.
-Notation Details and Examples
+
+## Notation Details and Examples
 
 This section details the user-facing classes of the package, the specific parts of the G-BigSMILES notation they implement, and illustrative examples of their usage. For a more formal and complete definition of the syntax, please refer to the EBNF grammar for G-BigSMILES.
-User Interface
+
+### User Interface
 
 The package exposes four primary classes for direct user interaction. The following subsections provide descriptions and usage examples for each. More in-depth explanations of the notation and features can be found in the subsequent "Details" section.
-Stochastic Object (gbigsmiles.BigSmiles)
+
+### Stochastic Object (gbigsmiles.BigSmiles)
 
 The gbigsmiles.BigSmiles class is initialized with a single string representing a bigSMILES stochastic object.
 
@@ -225,7 +228,8 @@ moleculeA + . + | + mol_weightA + ``| + moleculeB+`.`+`|`+`mol_weightB`+`|` + ..
 ```
 
 In the case of mixtures, all but one of the mol_weight specifications can be relative, indicating a percentage of the total system weight rather than an absolute molecular weight. In such cases, mol_weight should be a positive floating-point number less than 100, followed by the % symbol (e.g., 10%). Ensure that the sum of specified percentages is less than 100%.
-Limitations
+
+## Limitations
 
 The G-BigSMILES notation introduced here has certain inherent limitations:
 
