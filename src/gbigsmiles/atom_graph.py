@@ -10,6 +10,7 @@ from typing import Any, Optional
 
 import networkx as nx
 import numpy as np
+from networkx.classes import non_edges
 
 from .chem_resource import atom_color_mapping, atom_name_mapping, atomic_masses, default_valence, smi_bond_mapping
 from .distribution import StochasticDistribution
@@ -165,11 +166,10 @@ class _StochasticObjectTracker:
 
     def add_molw(self, sto_atom_id, molw, molv, total_atom_bonds):
         if np.abs(molv) < total_atom_bonds:
-            raise ValueError("You cannot add a number of bonds that is higher than the atom valence. Please report on github.")
+            raise ValueError(f"You cannot add {total_atom_bonds} bonds; that is higher than the atom valence {abs(molv)}.")
         num_H = np.abs(molv) - total_atom_bonds
         self._sto_atom_id_actual_molw[sto_atom_id] += molw + num_H * atomic_masses.get(1)
-        print(num_H, "H added to ", sto_atom_id, " actual molw: ", self._sto_atom_id_actual_molw[sto_atom_id], " expected molw: ", self._sto_atom_id_expected_molw[sto_atom_id])
-        print("\n")
+        #print(num_H, "H added to ", sto_atom_id, " actual molw: ", self._sto_atom_id_actual_molw[sto_atom_id], " expected molw: ", self._sto_atom_id_expected_molw[sto_atom_id])
 
         tmp_id = sto_atom_id
         while tmp_id in self._parent_map:
@@ -285,16 +285,28 @@ class _PartialAtomGraph:
         if at least one stochastic bond exists its bond_type is added once.
         """
         total_bond = 0
-        stochastic_bond_type: int | None = None
+        non_static_bond_type: int | None = None
+        aromatic_bond_type: int | None = None
 
         for _u, _v, attr in self.generating_graph.out_edges(node_idx, data=True):
             if attr.get("static"):
                 total_bond += attr.get("bond_type", 0)
-            if attr.get("stochastic_weight", 0) > 0:
-                stochastic_bond_type = attr.get("bond_type", 0)
 
-        if stochastic_bond_type is not None:
-            total_bond += stochastic_bond_type
+                if attr.get("aromatic"):
+                    aromatic_bond_type = 1
+            else:
+                non_static_bond_type = attr.get("bond_type", 0)
+
+        for _u, _v, attr in self.generating_graph.in_edges(node_idx, data=True):
+            if not attr.get("static"):
+                non_static_bond_type = attr.get("bond_type", 0)
+
+        if non_static_bond_type is not None:
+            total_bond += non_static_bond_type
+
+        if aromatic_bond_type is not None:
+            total_bond += aromatic_bond_type
+
         return total_bond
 
 
