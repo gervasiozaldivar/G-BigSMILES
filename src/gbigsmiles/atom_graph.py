@@ -10,8 +10,9 @@ from typing import Any, Optional
 
 import networkx as nx
 import numpy as np
+from networkx.classes import non_edges
 
-from .chem_resource import atom_color_mapping, atom_name_mapping, atomic_masses
+from .chem_resource import atom_color_mapping, atom_name_mapping, atomic_masses, default_valence, smi_bond_mapping
 from .distribution import StochasticDistribution
 from .exception import (
     IncompleteStochasticGeneration,
@@ -163,17 +164,20 @@ class _StochasticObjectTracker:
 
         return new_sto_atom_id
 
-    def add_molw(self, sto_atom_id, molw):
-        self._sto_atom_id_actual_molw[sto_atom_id] += molw
+    def add_molw(self, sto_atom_id, molw, molv, total_atom_bonds):
+        if np.abs(molv) < total_atom_bonds:
+            raise ValueError(f"You cannot add {total_atom_bonds} bonds; that is higher than the atom valence {abs(molv)}.")
+        num_H = np.abs(molv) - total_atom_bonds
+        self._sto_atom_id_actual_molw[sto_atom_id] += molw + num_H * atomic_masses.get(1)
 
         tmp_id = sto_atom_id
         while tmp_id in self._parent_map:
             tmp_id = self._parent_map[tmp_id]
-            self._sto_atom_id_actual_molw[tmp_id] += molw
+            self._sto_atom_id_actual_molw[tmp_id] += molw + num_H * atomic_masses.get(1)
         return self._sto_atom_id_actual_molw[sto_atom_id] >= self._sto_atom_id_expected_molw[sto_atom_id]
 
     def should_terminate(self, sto_atom_id):
-        return self.add_molw(sto_atom_id, 0)
+        return self.add_molw(sto_atom_id, 0, 0, 0)
 
     def _is_sto_gen_id_known(self, sto_gen_id):
         return sto_gen_id in self._sto_gen_id_distribution
@@ -273,6 +277,33 @@ class _PartialAtomGraph:
                 idx = parent_idx
         return idx, open_half_bonds
 
+    def _compute_total_bond(self, node_idx: int) -> int:
+
+        total_bond = 0
+        non_static_bond_type: int | None = None
+        aromatic_bond_type: int | None = None
+
+        for _u, _v, attr in self.generating_graph.out_edges(node_idx, data=True):
+            if attr.get("static"):
+                total_bond += attr.get("bond_type", 0)
+                if attr.get("aromatic"):
+                    aromatic_bond_type = 1
+            else:
+                non_static_bond_type = attr.get("bond_type", 0)
+
+        for _u, _v, attr in self.generating_graph.in_edges(node_idx, data=True):
+            if not attr.get("static"):
+                non_static_bond_type = attr.get("bond_type", 0)
+
+        if non_static_bond_type is not None:
+            total_bond += non_static_bond_type
+
+        if aromatic_bond_type is not None:
+            total_bond += aromatic_bond_type
+
+        return total_bond
+
+
     def add_static_sub_graph(self, source, sto_atom_id, rng):
         atom_key_to_gen_key = {}
         gen_key_to_atom_key = {}
@@ -284,7 +315,8 @@ class _PartialAtomGraph:
             gen_key_to_atom_key[node_idx] = self._atom_id
             half_bond = _HalfAtomBond(self._atom_id, node_idx, self.generating_graph, rng)
 
-            self.stochastic_tracker.add_molw(sto_atom_id, atomic_masses[data["atomic_num"]])
+            atom_total_bond = self._compute_total_bond(node_idx)
+            self.stochastic_tracker.add_molw(sto_atom_id, atomic_masses[data["atomic_num"]], default_valence[data["atomic_num"]], atom_total_bond)
             self._atom_id += 1
 
             if half_bond.weight > 0 and half_bond.has_any_bonds():
