@@ -169,7 +169,6 @@ class _StochasticObjectTracker:
             raise ValueError(f"You cannot add {total_atom_bonds} bonds; that is higher than the atom valence {abs(molv)}.")
         num_H = np.abs(molv) - total_atom_bonds
         self._sto_atom_id_actual_molw[sto_atom_id] += molw + num_H * atomic_masses.get(1)
-        #print(num_H, "H added to ", sto_atom_id, " actual molw: ", self._sto_atom_id_actual_molw[sto_atom_id], " expected molw: ", self._sto_atom_id_expected_molw[sto_atom_id])
 
         tmp_id = sto_atom_id
         while tmp_id in self._parent_map:
@@ -279,11 +278,7 @@ class _PartialAtomGraph:
         return idx, open_half_bonds
 
     def _compute_total_bond(self, node_idx: int) -> int:
-        """
-        Return the total bond order contributed by a node in
-        ``self.generating_graph``. Static bonds are summed directly;
-        if at least one stochastic bond exists its bond_type is added once.
-        """
+
         total_bond = 0
         non_static_bond_type: int | None = None
         aromatic_bond_type: int | None = None
@@ -291,7 +286,6 @@ class _PartialAtomGraph:
         for _u, _v, attr in self.generating_graph.out_edges(node_idx, data=True):
             if attr.get("static"):
                 total_bond += attr.get("bond_type", 0)
-
                 if attr.get("aromatic"):
                     aromatic_bond_type = 1
             else:
