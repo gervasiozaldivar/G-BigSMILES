@@ -503,7 +503,7 @@ class GeneratingGraph:
         - **total_molecular_weight** float Molecular Weight of the entire material system, this is equal to the sum **mol_molecular_weight** of the comprising molecules. If only one molecule species is present, they are identical. If this is unspecified by the string, negative values are used.
         - **init_weight** float Molecular Weight fractions for entry points into the graph generation. If no molecular weights are specified 1.0 is used. Negative values indicate nodes that are not starting positions for the generation.
         - **gen_weight** float Weight to select this atom for the next generation step.
-        - **parent_stochastic_id**: int Identification of the parent stochastic structure if node is part of a nested stochastic object. -1 if not a stochastic object, -2 if not a nested object
+        - **stochastic_tree_id**: vector[int] Identification of the higher-level stochastic objects to which the node belongs if node is part of a nested stochastic object. The vector is ordered from nearest to farthest ancestor (e.g., first element is the immediate parent, second is the grandparent, etc.).  All elements are -1 if not a stochastic object, -2 if ancestor is absent.
 
 
         Edges(Bonds) have the following properties:
@@ -579,11 +579,16 @@ class GeneratingGraph:
             if "init_weight" in data and data["init_weight"] is not None:
                 init_weight = data["init_weight"]
 
-            parent_stochastic = -1
+            stochastic_tree_id = [-1] * 10
             if stochastic_id != -1:
-                parent_stochastic = -2
-                if "stochastic_obj" in data and data["stochastic_obj"].stochastic_parent is not None:
-                    parent_stochastic = self._stochastic_id_map[id(data["stochastic_obj"].stochastic_parent)]
+                stochastic_tree_id = [-2] * 10
+                i = 0
+                if "stochastic_obj" in data:
+                    stochastic_obj = data["stochastic_obj"]
+                    while stochastic_obj.stochastic_parent is not None:
+                        stochastic_tree_id[i] = self._stochastic_id_map[id(stochastic_obj.stochastic_parent)]
+                        stochastic_obj = stochastic_obj.stochastic_parent
+                        i+= 1
 
             ml_graph.add_node(
                 node,
@@ -597,7 +602,7 @@ class GeneratingGraph:
                     "init_weight": float(init_weight),
                     "gen_weight": float(gen_weight),
                     "stochastic_id": stochastic_id,
-                    "parent_stochastic_id": parent_stochastic,
+                    "stochastic_tree_id": stochastic_tree_id,
                 },
             )
 

@@ -35,7 +35,7 @@ class _HalfAtomBond:
         self.atom_idx: int = atom_idx
         self.node_idx: str = node_idx
         self.weight: float = graph.nodes[node_idx]["gen_weight"]
-        self.parent: int = graph.nodes[node_idx]["parent_stochastic_id"]
+        self.parent: int = graph.nodes[node_idx]["stochastic_tree_id"][0]
         self._graph = graph
 
         self._mode_attr_map = {}
@@ -61,7 +61,7 @@ class _HalfAtomBond:
                 if d[_TRANSITION_NAME] > 0:
                     current_stochastic_id = graph.nodes[u]["stochastic_id"]
                     target_stochastic_id = graph.nodes[v]["stochastic_id"]
-                    parent_target_stochastic_id = graph.nodes[v]["parent_stochastic_id"]
+                    parent_target_stochastic_id = graph.nodes[v]["stochastic_tree_id"][0]
                     if current_stochastic_id != target_stochastic_id and parent_target_stochastic_id == current_stochastic_id:
                         special_target_list += [(v, d)]
                         special_target_weight += [d[_TRANSITION_NAME]]
@@ -688,7 +688,7 @@ class AtomGraph:
         stochastic_object_tracker = _StochasticObjectTracker(self.ml_graph, rng)
 
         source_sto_gen_id = self.ml_graph.nodes[source]["stochastic_id"]
-        sto_atom_id = stochastic_object_tracker.register_new_atom_instance(source_sto_gen_id, self.ml_graph.nodes[source]["parent_stochastic_id"], False)
+        sto_atom_id = stochastic_object_tracker.register_new_atom_instance(source_sto_gen_id, self.ml_graph.nodes[source]["stochastic_tree_id"][0], False)
         partial_atom_graph = _PartialAtomGraph(self.ml_graph, self._static_graph, source, stochastic_object_tracker, sto_atom_id, rng)
         del stochastic_object_tracker
 

@@ -91,7 +91,7 @@ class StochasticObject(BigSMILESbase, GenerationBase):
                 MLgraph = gen_graph.get_ml_graph(include_bond_descriptors=True)
                 for node, data in MLgraph.nodes(data=True):
                     if node in gen_graph._bd_idx_set:
-                        if data["stochastic_id"] == data["parent_stochastic_id"]:
+                        if data["stochastic_id"] == data["stochastic_tree_id"][0]:
                             for _u, v in MLgraph.out_edges(node):
                                 stochastic_id = MLgraph.nodes(data=True)[v]["stochastic_id"]
                                 if (v in gen_graph._bd_idx_set) and (data["stochastic_id"] == stochastic_id):
