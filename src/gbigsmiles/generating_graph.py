@@ -582,13 +582,13 @@ class GeneratingGraph:
             stochastic_tree_id = [-1] * 10
             if stochastic_id != -1:
                 stochastic_tree_id = [-2] * 10
-                i = 0
+                depth_idx = 0
                 if "stochastic_obj" in data:
-                    stochastic_obj = data["stochastic_obj"]
-                    while stochastic_obj.stochastic_parent is not None:
-                        stochastic_tree_id[i] = self._stochastic_id_map[id(stochastic_obj.stochastic_parent)]
-                        stochastic_obj = stochastic_obj.stochastic_parent
-                        i+= 1
+                    current_stochastic_obj = data["stochastic_obj"]
+                    while current_stochastic_obj.stochastic_parent is not None:
+                        stochastic_tree_id[depth_idx] = self._stochastic_id_map[id(current_stochastic_obj.stochastic_parent)]
+                        current_stochastic_obj = current_stochastic_obj.stochastic_parent
+                        depth_idx += 1
 
             ml_graph.add_node(
                 node,

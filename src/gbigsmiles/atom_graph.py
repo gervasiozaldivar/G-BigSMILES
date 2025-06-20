@@ -115,6 +115,7 @@ class _StochasticObjectTracker:
         self._sto_atom_id_expected_molw = OrderedDict()
         self._terminated_sto_atom_ids = set()
         self._parent_map = {}
+        self._parent_molw = [0.0] * 10
 
         for _node_idx, data in generating_graph.nodes(data=True):
             if data["stochastic_id"] >= 0:
@@ -157,27 +158,37 @@ class _StochasticObjectTracker:
         else:
             self._sto_atom_id_expected_molw[new_sto_atom_id] = -1
 
-        self._sto_atom_id_actual_molw[new_sto_atom_id] = 0
+        self._sto_atom_id_actual_molw[new_sto_atom_id] = self._parent_molw[sto_gen_id]
+        print("sto_gen_id: ", sto_gen_id, " and new atom id: ", new_sto_atom_id, " and parent molw: ", self._parent_molw[sto_gen_id])
+        print("------------------------------------------------------------------------------------------")
 
         if is_nested_parent:
             self._parent_map[new_sto_atom_id] = old_atom_id
 
         return new_sto_atom_id
 
-    def add_molw(self, sto_atom_id, molw, molv, total_atom_bonds):
+    def add_molw(self, sto_atom_id, molw, molv, total_atom_bonds, stochastic_tree_id):
         if np.abs(molv) < total_atom_bonds:
             raise ValueError(f"You cannot add {total_atom_bonds} bonds; that is higher than the atom valence {abs(molv)}.")
         num_H = np.abs(molv) - total_atom_bonds
         self._sto_atom_id_actual_molw[sto_atom_id] += molw + num_H * atomic_masses.get(1)
 
-        tmp_id = sto_atom_id
-        while tmp_id in self._parent_map:
-            tmp_id = self._parent_map[tmp_id]
-            self._sto_atom_id_actual_molw[tmp_id] += molw + num_H * atomic_masses.get(1)
+        if stochastic_tree_id is not None:
+            index = 0
+            while stochastic_tree_id[index] >= 0:
+                tmp_id = stochastic_tree_id[index]
+                self._parent_molw[tmp_id] += molw + num_H * atomic_masses.get(1)
+                index += 1
+
+        print(num_H, "H added to ", sto_atom_id, " actual molw: ", self._sto_atom_id_actual_molw[sto_atom_id], " expected molw: ", self._sto_atom_id_expected_molw[sto_atom_id])
+        print("stochastic tree id: ", stochastic_tree_id)
+        print("parent molw: ", self._parent_molw)
+        print("------------------------------------------------------------------------------------------")
+
         return self._sto_atom_id_actual_molw[sto_atom_id] >= self._sto_atom_id_expected_molw[sto_atom_id]
 
     def should_terminate(self, sto_atom_id):
-        return self.add_molw(sto_atom_id, 0, 0, 0)
+        return self.add_molw(sto_atom_id, 0, 0, 0, None)
 
     def _is_sto_gen_id_known(self, sto_gen_id):
         return sto_gen_id in self._sto_gen_id_distribution
@@ -303,7 +314,6 @@ class _PartialAtomGraph:
 
         return total_bond
 
-
     def add_static_sub_graph(self, source, sto_atom_id, rng):
         atom_key_to_gen_key = {}
         gen_key_to_atom_key = {}
@@ -316,7 +326,8 @@ class _PartialAtomGraph:
             half_bond = _HalfAtomBond(self._atom_id, node_idx, self.generating_graph, rng)
 
             atom_total_bond = self._compute_total_bond(node_idx)
-            self.stochastic_tracker.add_molw(sto_atom_id, atomic_masses[data["atomic_num"]], default_valence[data["atomic_num"]], atom_total_bond)
+            stochastic_tree_id = self.generating_graph.nodes[node_idx]["stochastic_tree_id"]
+            self.stochastic_tracker.add_molw(sto_atom_id, atomic_masses[data["atomic_num"]], default_valence[data["atomic_num"]], atom_total_bond, stochastic_tree_id)
             self._atom_id += 1
 
             if half_bond.weight > 0 and half_bond.has_any_bonds():
