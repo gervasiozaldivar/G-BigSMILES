@@ -46,6 +46,11 @@ To install this package itself, use pip:
 ```shell
 pip install gbigsmiles
 ```
+To update to the latest version:
+
+```shell
+pip install --upgrade gbigsmiles
+```
 
 To verify the installation, you can try importing the package from a directory outside the installation location:
 
