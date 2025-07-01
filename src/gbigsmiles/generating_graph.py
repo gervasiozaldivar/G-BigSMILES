@@ -497,13 +497,12 @@ class GeneratingGraph:
         - **atomic_num**: int Atomic number, can be converted to Chemical Symbol Name or one-hot encoding.
         - **{aromatic_name}**: bool Indicating the aromaticity of the atom.
         - **charge**: float Nominal charge (not partial charge in Force-Fields) in elementary unit *e*.
-        - **stochastic_generation**: vector[float] representing the different molecular weight distributions and their parameters.
-        - **stochastic_id": int Identification number that represent separate stochastic objects in the molecules.
+        - **molecular_weight_distribution**: array[float] representing the molecular weight distribution of each stochastic object in the graph. The index of each vector is the stochastic id.
         - **mol_molecular_weight** float Molecular Weight of the total molecular weight in the system from this molecular species. If this is unspecified by the string, negative values are used.
         - **total_molecular_weight** float Molecular Weight of the entire material system, this is equal to the sum **mol_molecular_weight** of the comprising molecules. If only one molecule species is present, they are identical. If this is unspecified by the string, negative values are used.
         - **init_weight** float Molecular Weight fractions for entry points into the graph generation. If no molecular weights are specified 1.0 is used. Negative values indicate nodes that are not starting positions for the generation.
         - **gen_weight** float Weight to select this atom for the next generation step.
-        - **stochastic_tree_id**: vector[int] Identification of the higher-level stochastic objects to which the node belongs if node is part of a nested stochastic object. The vector is ordered from nearest to farthest ancestor (e.g., first element is the immediate parent, second is the grandparent, etc.).  All elements are -1 if not a stochastic object, -2 if ancestor is absent.
+        - **stochastic_id_tree**: vector[int] Identification of the stochastic objects to which the node belongs. The vector is ordered from nearest to farthest ancestor (e.g., first element is node stochastic id, second element is parent, third is grandparent, etc.).  All elements are -1 if not a stochastic object, element is -2 if ancestor is absent.
 
 
         Edges(Bonds) have the following properties:
@@ -526,6 +525,18 @@ class GeneratingGraph:
             graph = self.get_graph_without_bond_descriptors().copy()
 
         ml_graph = nx.MultiDiGraph()
+
+        graph_with_bond_descriptors = self.g.copy()
+        MW_distribution_array = [StochasticDistribution.get_empty_serial_vector()] * 10
+
+        for node, data in graph_with_bond_descriptors.nodes(data=True):
+            try:
+                stochastic_id = data["stochastic_id"]
+                MW_distribution_vector = data["stochastic_obj"].stochastic_generation.get_serial_vector()
+                MW_distribution_array[stochastic_id] = MW_distribution_vector
+            except KeyError:
+                pass
+
         for node, data in graph.nodes(data=True):
             obj = data["obj"]
             try:
@@ -561,10 +572,8 @@ class GeneratingGraph:
                 charge = float("nan")
 
             if "stochastic_obj" not in data or data["stochastic_obj"].stochastic_generation is None:
-                stochastic_vector = StochasticDistribution.get_empty_serial_vector()
                 stochastic_id = -1
             else:
-                stochastic_vector = data["stochastic_obj"].stochastic_generation.get_serial_vector()
                 stochastic_id = data["stochastic_id"]
 
             mol_molecular_weight = -1.0
@@ -579,14 +588,16 @@ class GeneratingGraph:
             if "init_weight" in data and data["init_weight"] is not None:
                 init_weight = data["init_weight"]
 
-            stochastic_tree_id = [-1] * 10
+            stochastic_id_tree = [-1] * 10
+
             if stochastic_id != -1:
-                stochastic_tree_id = [-2] * 10
-                depth_idx = 0
+                stochastic_id_tree = [-2] * 10
+                stochastic_id_tree[0] = stochastic_id
+                depth_idx = 1
                 if "stochastic_obj" in data:
                     current_stochastic_obj = data["stochastic_obj"]
                     while current_stochastic_obj.stochastic_parent is not None:
-                        stochastic_tree_id[depth_idx] = self._stochastic_id_map[id(current_stochastic_obj.stochastic_parent)]
+                        stochastic_id_tree[depth_idx] = self._stochastic_id_map[id(current_stochastic_obj.stochastic_parent)]
                         current_stochastic_obj = current_stochastic_obj.stochastic_parent
                         depth_idx += 1
 
@@ -596,13 +607,12 @@ class GeneratingGraph:
                     "atomic_num": atomic_num,
                     _AROMATIC_NAME: aromatic,
                     "charge": charge,
-                    "stochastic_generation": stochastic_vector,
+                    "molecular_weight_distribution": MW_distribution_array,
                     "mol_molecular_weight": mol_molecular_weight,
                     "total_molecular_weight": total_molecular_weight,
                     "init_weight": float(init_weight),
                     "gen_weight": float(gen_weight),
-                    "stochastic_id": stochastic_id,
-                    "stochastic_tree_id": stochastic_tree_id,
+                    "stochastic_id_tree": stochastic_id_tree,
                 },
             )
 

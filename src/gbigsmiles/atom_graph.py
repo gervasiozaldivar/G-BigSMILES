@@ -35,7 +35,7 @@ class _HalfAtomBond:
         self.atom_idx: int = atom_idx
         self.node_idx: str = node_idx
         self.weight: float = graph.nodes[node_idx]["gen_weight"]
-        self.parent: int = graph.nodes[node_idx]["stochastic_tree_id"][0]
+        self.parent: int = graph.nodes[node_idx]["stochastic_id_tree"][1]
         self._graph = graph
 
         self._mode_attr_map = {}
@@ -59,9 +59,9 @@ class _HalfAtomBond:
                             self._mode_target_map[k] = [v]
 
                 if d[_TRANSITION_NAME] > 0:
-                    current_stochastic_id = graph.nodes[u]["stochastic_id"]
-                    target_stochastic_id = graph.nodes[v]["stochastic_id"]
-                    parent_target_stochastic_id = graph.nodes[v]["stochastic_tree_id"][0]
+                    current_stochastic_id = graph.nodes[u]["stochastic_id_tree"][0]
+                    target_stochastic_id = graph.nodes[v]["stochastic_id_tree"][0]
+                    parent_target_stochastic_id = graph.nodes[v]["stochastic_id_tree"][1]
                     if current_stochastic_id != target_stochastic_id and parent_target_stochastic_id == current_stochastic_id:
                         special_target_list += [(v, d)]
                         special_target_weight += [d[_TRANSITION_NAME]]
@@ -115,13 +115,14 @@ class _StochasticObjectTracker:
         self._sto_atom_id_expected_molw = OrderedDict()
         self._terminated_sto_atom_ids = set()
         self._parent_map = {}
-        self._parent_molw = [0.0] * 10
+        self._parent_molw = {}
 
         for _node_idx, data in generating_graph.nodes(data=True):
-            if data["stochastic_id"] >= 0:
-                stochastic_vector = data["stochastic_generation"].copy()
+            if data["stochastic_id_tree"][0] >= 0:
+                stochastic_array = data["molecular_weight_distribution"]
+                stochastic_vector = stochastic_array[data["stochastic_id_tree"][0]].copy()
                 distribution = StochasticDistribution.from_serial_vector(stochastic_vector)
-                self._register_sto_gen_id(data["stochastic_id"], distribution)
+                self._register_sto_gen_id(data["stochastic_id_tree"][0], distribution)
 
     def has_sto_gen_id_unterminated_sto_ids(self, sto_gen_id: int):
         if sto_gen_id not in self._stochastic_gen_id_to_atom_id:
@@ -157,31 +158,43 @@ class _StochasticObjectTracker:
             self._sto_atom_id_expected_molw[new_sto_atom_id] = new_molw
         else:
             self._sto_atom_id_expected_molw[new_sto_atom_id] = -1
+        try:
+            self._sto_atom_id_actual_molw[new_sto_atom_id] = self._parent_molw[sto_gen_id]
+            print("sto_gen_id: ", sto_gen_id, " and new atom id: ", new_sto_atom_id, " and parent molw: ",
+                  self._parent_molw[sto_gen_id])
+            print("------------------------------------------------------------------------------------------")
+        except KeyError:
+            self._sto_atom_id_actual_molw[new_sto_atom_id] = 0
+            print("sto_gen_id: ", sto_gen_id, " and new atom id: ", new_sto_atom_id)
+            print("------------------------------------------------------------------------------------------")
 
-        self._sto_atom_id_actual_molw[new_sto_atom_id] = self._parent_molw[sto_gen_id]
-        print("sto_gen_id: ", sto_gen_id, " and new atom id: ", new_sto_atom_id, " and parent molw: ", self._parent_molw[sto_gen_id])
-        print("------------------------------------------------------------------------------------------")
+
 
         if is_nested_parent:
             self._parent_map[new_sto_atom_id] = old_atom_id
 
         return new_sto_atom_id
 
-    def add_molw(self, sto_atom_id, molw, molv, total_atom_bonds, stochastic_tree_id):
+    def add_molw(self, sto_atom_id, molw, molv, total_atom_bonds, stochastic_id_tree):
         if np.abs(molv) < total_atom_bonds:
             raise ValueError(f"You cannot add {total_atom_bonds} bonds; that is higher than the atom valence {abs(molv)}.")
         num_H = np.abs(molv) - total_atom_bonds
         self._sto_atom_id_actual_molw[sto_atom_id] += molw + num_H * atomic_masses.get(1)
 
-        if stochastic_tree_id is not None:
-            index = 0
-            while stochastic_tree_id[index] >= 0:
-                tmp_id = stochastic_tree_id[index]
-                self._parent_molw[tmp_id] += molw + num_H * atomic_masses.get(1)
+        if stochastic_id_tree:
+            index = 1
+            while stochastic_id_tree[index] >= 0:
+                parent_id = stochastic_id_tree[index]
+                try:
+                    self._parent_molw[parent_id] += molw + num_H * atomic_masses.get(1)
+                except KeyError:
+                    print("Creating parent molW dict...")
+                    self._parent_molw.setdefault(parent_id, 0)
+                    self._parent_molw[parent_id] += molw + num_H * atomic_masses.get(1)
                 index += 1
 
         print(num_H, "H added to ", sto_atom_id, " actual molw: ", self._sto_atom_id_actual_molw[sto_atom_id], " expected molw: ", self._sto_atom_id_expected_molw[sto_atom_id])
-        print("stochastic tree id: ", stochastic_tree_id)
+        print("stochastic id tree: ", stochastic_id_tree)
         print("parent molw: ", self._parent_molw)
         print("------------------------------------------------------------------------------------------")
 
@@ -201,7 +214,10 @@ class _StochasticObjectTracker:
     def terminate(self, sto_atom_id):
         if self.is_terminated(sto_atom_id):
             raise RuntimeError("You cannot terminate an already terminated stochastic ID. This is a bug, please report on github.")
-
+        try:
+            self._parent_molw[self._stochastic_atom_id_to_gen_id[sto_atom_id]] = 0
+        except KeyError:
+            pass
         self._terminated_sto_atom_ids.add(sto_atom_id)
 
     def draw_mw(self, sto_gen_id, sto_atom_id=None, rng=None) -> None | float:
@@ -326,8 +342,8 @@ class _PartialAtomGraph:
             half_bond = _HalfAtomBond(self._atom_id, node_idx, self.generating_graph, rng)
 
             atom_total_bond = self._compute_total_bond(node_idx)
-            stochastic_tree_id = self.generating_graph.nodes[node_idx]["stochastic_tree_id"]
-            self.stochastic_tracker.add_molw(sto_atom_id, atomic_masses[data["atomic_num"]], default_valence[data["atomic_num"]], atom_total_bond, stochastic_tree_id)
+            stochastic_id_tree = self.generating_graph.nodes[node_idx]["stochastic_id_tree"]
+            self.stochastic_tracker.add_molw(sto_atom_id, atomic_masses[data["atomic_num"]], default_valence[data["atomic_num"]], atom_total_bond, stochastic_id_tree)
             self._atom_id += 1
 
             if half_bond.weight > 0 and half_bond.has_any_bonds():
@@ -497,7 +513,7 @@ class _PartialAtomGraph:
         target_id = rng.choice(len(target_idx), p=target_prob)
         selected_target_idx = target_idx[target_id]
         selected_attr = self.gen_edge_attr_to_bond_attr(target_attr[target_id])
-        selected_target_sto_gen_id = self.generating_graph.nodes[selected_target_idx]["stochastic_id"]
+        selected_target_sto_gen_id = self.generating_graph.nodes[selected_target_idx]["stochastic_id_tree"][0]
         # if selected_target_sto_gen_id > 0:
         #     if self.stochastic_tracker._stochastic_atom_id_to_gen_id[sto_atom_id] == selected_target_sto_gen_id:
         #         raise RuntimeError("New stochastic IDs need to be new.")
@@ -553,7 +569,7 @@ class _PartialAtomGraph:
         target_id = rng.choice(len(target_idx), p=target_prob)
         selected_target_idx = target_idx[target_id]
         selected_attr = self.gen_edge_attr_to_bond_attr(target_attr[target_id])
-        selected_target_sto_gen_id = self.generating_graph.nodes[selected_target_idx]["stochastic_id"]
+        selected_target_sto_gen_id = self.generating_graph.nodes[selected_target_idx]["stochastic_id_tree"][0]
 
         new_sto_atom_id = sto_atom_id
         if self.stochastic_tracker._stochastic_atom_id_to_gen_id[sto_atom_id] != selected_target_sto_gen_id:
@@ -596,7 +612,7 @@ class _PartialAtomGraph:
 
         for nested_transition_bond in pop_nested_bonds():
             selected_target_idx, selected_attr = nested_transition_bond._special_target
-            selected_target_sto_gen_id = self.generating_graph.nodes[selected_target_idx]["stochastic_id"]
+            selected_target_sto_gen_id = self.generating_graph.nodes[selected_target_idx]["stochastic_id_tree"][0]
 
             new_sto_atom_id = sto_atom_id
             if self.stochastic_tracker._stochastic_atom_id_to_gen_id[sto_atom_id] != selected_target_sto_gen_id:
@@ -698,8 +714,8 @@ class AtomGraph:
 
         stochastic_object_tracker = _StochasticObjectTracker(self.ml_graph, rng)
 
-        source_sto_gen_id = self.ml_graph.nodes[source]["stochastic_id"]
-        sto_atom_id = stochastic_object_tracker.register_new_atom_instance(source_sto_gen_id, self.ml_graph.nodes[source]["stochastic_tree_id"][0], False)
+        source_sto_gen_id = self.ml_graph.nodes[source]["stochastic_id_tree"][0]
+        sto_atom_id = stochastic_object_tracker.register_new_atom_instance(source_sto_gen_id, self.ml_graph.nodes[source]["stochastic_id_tree"][1], False)
         partial_atom_graph = _PartialAtomGraph(self.ml_graph, self._static_graph, source, stochastic_object_tracker, sto_atom_id, rng)
         del stochastic_object_tracker
 
