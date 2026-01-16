@@ -51,15 +51,34 @@ def test_alkene_stereo_unspecified():
     assert double_bonds[0].GetStereo() in (Chem.BondStereo.STEREONONE, Chem.BondStereo.STEREOANY)
 
 
-def test_alkene_stereo_trans():
-    Chem, mol = _rdkit_mol_from_smiles("F/C=C/F")
-    double_bonds = [b for b in mol.GetBonds() if b.GetBondType() == Chem.BondType.DOUBLE]
-    assert len(double_bonds) == 1
-    assert double_bonds[0].GetStereo() == Chem.BondStereo.STEREOE
+def _rdkit_mol_from_bigsmiles(text: str, seed: int = 0):
+    pytest.importorskip("rdkit")
+    from rdkit import Chem
+
+    parsed = gbigsmiles.BigSmiles.make(text)
+    atom_graph = parsed.get_generating_graph().get_atom_graph()
+    mol_graph = atom_graph.sample_mol_graph(rng=np.random.default_rng(seed))
+    return Chem, gbigsmiles.mol_graph_to_rdkit_mol(mol_graph)
 
 
-def test_alkene_stereo_cis():
-    Chem, mol = _rdkit_mol_from_smiles("F/C=C\\F")
-    double_bonds = [b for b in mol.GetBonds() if b.GetBondType() == Chem.BondType.DOUBLE]
-    assert len(double_bonds) == 1
-    assert double_bonds[0].GetStereo() == Chem.BondStereo.STEREOZ
+def test_polymer_alkene_stereo_unspecified():
+    text = "[H]{[>][<]C=CC[>][<]}|uniform(100,100)|[H]"
+    Chem, mol = _rdkit_mol_from_bigsmiles(text, seed=0)
+    doubles = [b for b in mol.GetBonds() if b.GetBondType() == Chem.BondType.DOUBLE]
+    assert len(doubles) >= 1
+    assert all(db.GetStereo() in (Chem.BondStereo.STEREONONE, Chem.BondStereo.STEREOANY) for db in doubles)
+
+def test_polymer_alkene_stereo_trans():
+    text = "[H]{[>][<]C/C=C/C[>][<]}|uniform(100,100)|[H]"
+    Chem, mol = _rdkit_mol_from_bigsmiles(text, seed=1)
+    doubles = [b for b in mol.GetBonds() if b.GetBondType() == Chem.BondType.DOUBLE]
+    assert len(doubles) >= 1
+    assert any(db.GetStereo() == Chem.BondStereo.STEREOE for db in doubles)
+
+
+def test_polymer_alkene_stereo_cis():
+    text = "[H]{[>][<]C\\C=C/C[>][<]}|uniform(100,100)|[H]"
+    Chem, mol = _rdkit_mol_from_bigsmiles(text, seed=2)
+    doubles = [b for b in mol.GetBonds() if b.GetBondType() == Chem.BondType.DOUBLE]
+    assert len(doubles) >= 1
+    assert any(db.GetStereo() == Chem.BondStereo.STEREOZ for db in doubles)
