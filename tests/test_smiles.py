@@ -32,3 +32,34 @@ def test_smiles_weight(n, chembl_smi_list):
         for mol in big_smiles.mol_molecular_weight_map:
             print("x", mol, big_smiles.mol_molecular_weight_map[mol])
         assert abs(total_mw - big_smiles.total_molecular_weight) < 1e-6
+
+
+def _rdkit_mol_from_smiles(smi: str):
+    pytest.importorskip("rdkit")
+    from rdkit import Chem
+
+    parsed = gbigsmiles.BigSmiles.make(smi)
+    atom_graph = parsed.get_generating_graph().get_atom_graph()
+    mol_graph = atom_graph.sample_mol_graph()
+    return Chem, gbigsmiles.mol_graph_to_rdkit_mol(mol_graph)
+
+
+def test_alkene_stereo_unspecified():
+    Chem, mol = _rdkit_mol_from_smiles("FC=CF")
+    double_bonds = [b for b in mol.GetBonds() if b.GetBondType() == Chem.BondType.DOUBLE]
+    assert len(double_bonds) == 1
+    assert double_bonds[0].GetStereo() in (Chem.BondStereo.STEREONONE, Chem.BondStereo.STEREOANY)
+
+
+def test_alkene_stereo_trans():
+    Chem, mol = _rdkit_mol_from_smiles("F/C=C/F")
+    double_bonds = [b for b in mol.GetBonds() if b.GetBondType() == Chem.BondType.DOUBLE]
+    assert len(double_bonds) == 1
+    assert double_bonds[0].GetStereo() == Chem.BondStereo.STEREOE
+
+
+def test_alkene_stereo_cis():
+    Chem, mol = _rdkit_mol_from_smiles("F/C=C\\F")
+    double_bonds = [b for b in mol.GetBonds() if b.GetBondType() == Chem.BondType.DOUBLE]
+    assert len(double_bonds) == 1
+    assert double_bonds[0].GetStereo() == Chem.BondStereo.STEREOZ

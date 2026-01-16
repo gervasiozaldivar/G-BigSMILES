@@ -28,6 +28,7 @@ _TRANSITION_NAME = "transition_weight"
 _STATIC_NAME = "static"
 _AROMATIC_NAME = "aromatic"
 _BOND_TYPE_NAME = "bond_type"
+_BOND_DIR_NAME = "bond_dir"
 _NON_STATIC_ATTR = (_STOCHASTIC_NAME, _TERMINATION_NAME, _TRANSITION_NAME)
 
 
@@ -318,6 +319,10 @@ class GeneratingGraph:
                                 return 0.0, None
                         else:
                             data[_BOND_TYPE_NAME] = d[_BOND_TYPE_NAME]
+                    if _BOND_DIR_NAME in d and d[_BOND_DIR_NAME]:
+                        if _BOND_DIR_NAME in data and data[_BOND_DIR_NAME] != d[_BOND_DIR_NAME]:
+                            return 0.0, None
+                        data[_BOND_DIR_NAME] = d[_BOND_DIR_NAME]
 
                     non_static_weights = [d[attr] if attr in d else 0 for attr in non_static_attribute_list]
                     if max(non_static_weights) > 0:
@@ -606,6 +611,7 @@ class GeneratingGraph:
             d.setdefault(_STOCHASTIC_NAME, 0)
             d.setdefault(_TERMINATION_NAME, 0)
             d.setdefault(_TRANSITION_NAME, 0)
+            d.setdefault(_BOND_DIR_NAME, "")
             if _BOND_TYPE_NAME in d:
                 d[_BOND_TYPE_NAME] = smi_bond_mapping.get(str(d[_BOND_TYPE_NAME]), 1)
             else:

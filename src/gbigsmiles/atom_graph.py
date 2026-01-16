@@ -21,6 +21,7 @@ from .exception import (
 )
 from .generating_graph import (
     _AROMATIC_NAME,
+    _BOND_DIR_NAME,
     _BOND_TYPE_NAME,
     _NON_STATIC_ATTR,
     _STOCHASTIC_NAME,
@@ -209,7 +210,7 @@ class _StochasticObjectTracker:
 
 class _PartialAtomGraph:
     _ATOM_ATTRS = {"atomic_num", _AROMATIC_NAME, "charge"}
-    _BOND_ATTRS = {_BOND_TYPE_NAME, _AROMATIC_NAME}
+    _BOND_ATTRS = {_BOND_TYPE_NAME, _AROMATIC_NAME, _BOND_DIR_NAME}
 
     def __init__(self, generating_graph, static_graph, source_node, stochastic_tracker, sto_atom_id, rng):
         self._atom_id = 0

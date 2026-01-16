@@ -29,6 +29,9 @@ class BondSymbol(BigSMILESbase):
     def __init__(self, children: list):
         super().__init__(children)
         self._symbol = str(self._children[0])
+        self._direction: None | str = None
+        if self._symbol in ("/", "\\"):
+            self._direction = self._symbol
 
     @property
     def generable(self):
@@ -36,6 +39,10 @@ class BondSymbol(BigSMILESbase):
 
     def generate_string(self, extension):
         return self._symbol
+
+    @property
+    def direction(self) -> None | str:
+        return self._direction
 
 
 class RingBond(BigSMILESbase):
