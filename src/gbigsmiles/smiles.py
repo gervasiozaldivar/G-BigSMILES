@@ -55,7 +55,7 @@ class Branch(BigSMILESbase, GenerationBase):
             for lhb in partial_graph.left_half_bonds:
                 if _BOND_TYPE_NAME in lhb.bond_attributes:
                     raise DoubleBondSymbolDefinition(partial_graph, self._bond_symbol, lhb.bond_attributes)
-                lhb.bond_attributes[_BOND_TYPE_NAME] = self._bond_symbol
+                lhb.bond_attributes[_BOND_TYPE_NAME] = self._bond_symbol.base_symbol
                 if direction:
                     lhb.bond_attributes[_BOND_DIR_NAME] = direction
 
@@ -192,7 +192,7 @@ class AtomAssembly(BigSMILESbase, GenerationBase):
             for half_bond in partial_graph.left_half_bonds:
                 if _BOND_TYPE_NAME in half_bond.bond_attributes:
                     raise DoubleBondSymbolDefinition(partial_graph, self.bond_symbol, half_bond.bond_attributes)
-                half_bond.bond_attributes[_BOND_TYPE_NAME] = self.bond_symbol
+                half_bond.bond_attributes[_BOND_TYPE_NAME] = self.bond_symbol.base_symbol
                 if direction:
                     half_bond.bond_attributes[_BOND_DIR_NAME] = direction
 
