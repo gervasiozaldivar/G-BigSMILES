@@ -361,8 +361,9 @@ class _PartialAtomGraph:
     @staticmethod
     def _copy_some_dict_attr(dictionary: dict[str, Any], keys_to_copy: set[str]) -> dict[str, Any]:
         new_dict = {}
+        default_map = {_BOND_DIR_NAME: "", _AROMATIC_NAME: False}
         for k in keys_to_copy:
-            new_dict[k] = dictionary[k]
+            new_dict[k] = dictionary.get(k, default_map.get(k, 0))
         return new_dict
 
     def pop_target_open_half_bond(self, sto_atom_idx, target_idx) -> _HalfAtomBond:

@@ -611,7 +611,6 @@ class GeneratingGraph:
             d.setdefault(_STOCHASTIC_NAME, 0)
             d.setdefault(_TERMINATION_NAME, 0)
             d.setdefault(_TRANSITION_NAME, 0)
-            d.setdefault(_BOND_DIR_NAME, "")
             if _BOND_TYPE_NAME in d:
                 d[_BOND_TYPE_NAME] = smi_bond_mapping.get(str(d[_BOND_TYPE_NAME]), 1)
             else:
