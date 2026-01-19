@@ -59,9 +59,26 @@ def test_polymer_alkene_stereo_trans():
     assert any(db.GetStereo() == Chem.BondStereo.STEREOE for db in doubles)
 
 
+def test_polymer_alkene_stereo_trans_reverse():
+    text = "[H]{[>][<]C\\C=C\\C[>][<]}|uniform(100,100)|[H]"
+    Chem, mol = _rdkit_mol_from_bigsmiles(text, seed=2)
+    doubles = [b for b in mol.GetBonds() if b.GetBondType() == Chem.BondType.DOUBLE]
+    assert len(doubles) >= 1
+    assert any(db.GetStereo() == Chem.BondStereo.STEREOE for db in doubles)
+
+
 def test_polymer_alkene_stereo_cis():
     text = "[H]{[>][<]C\\C=C/C[>][<]}|uniform(100,100)|[H]"
     Chem, mol = _rdkit_mol_from_bigsmiles(text, seed=2)
     doubles = [b for b in mol.GetBonds() if b.GetBondType() == Chem.BondType.DOUBLE]
     assert len(doubles) >= 1
     assert any(db.GetStereo() == Chem.BondStereo.STEREOZ for db in doubles)
+
+
+def test_polymer_alkene_stereo_cis_reverse():
+    text = "[H]{[>][<]C/C=C\\C[>][<]}|uniform(100,100)|[H]"
+    Chem, mol = _rdkit_mol_from_bigsmiles(text, seed=2)
+    doubles = [b for b in mol.GetBonds() if b.GetBondType() == Chem.BondType.DOUBLE]
+    assert len(doubles) >= 1
+    assert any(db.GetStereo() == Chem.BondStereo.STEREOZ for db in doubles)
+
