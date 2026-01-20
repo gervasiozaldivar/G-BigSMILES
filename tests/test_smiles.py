@@ -37,7 +37,6 @@ def test_smiles_weight(n, chembl_smi_list):
 
 def _rdkit_mol_from_bigsmiles(text: str,seed:int):
     pytest.importorskip("rdkit")
-    warnings.filterwarnings("ignore") # there's a warnings due to the alkene in the backbone that's not relevant
     from rdkit import Chem
 
     parsed = gbigsmiles.BigSmiles.make(text)
@@ -100,4 +99,18 @@ def test_polymer_chiral_center_isotactic_polypropylene():
     # All specified stereocenters should be the same configuration (isotactic)
     chiral_tags = [a.GetChiralTag() for a in chiral_atoms]
     assert all(tag == chiral_tags[0] for tag in chiral_tags), "All stereocenters should have same configuration (isotactic)"
+
+
+def test_polymer_chiral_center_syndiotactic_polypropylene():
+    """Test that atom-level chirality ([C@H] and [C@@H]) is preserved in syndiotactic polypropylene (sPP)."""
+    text = "C{[>][<|0 0 0 1|]C[C@H](C)[>|0 0 1 0|], [<|0 1 0 0|]C[C@@H](C)[>|1 0 0 0|] [<]}|uniform(100,100)|[H]"
+    Chem, mol = _rdkit_mol_from_bigsmiles(text, seed=0)
+    # Find chiral carbon atoms (those with 4 different substituents including H)
+    chiral_atoms = [a for a in mol.GetAtoms() if a.GetChiralTag() != Chem.ChiralType.CHI_UNSPECIFIED]
+    # sPP should have chiral centers at the methine carbons
+    assert len(chiral_atoms) >= 1, "Expected at least one chiral center in syndiotactic polypropylene"
+    # Stereocenters should alternate configurations (syndiotactic)
+    for i in range(len(chiral_atoms) - 1):
+        assert chiral_atoms[i].GetChiralTag() != chiral_atoms[i + 1].GetChiralTag(), "Stereocenters should alternate configuration (syndiotactic)"
+  
 

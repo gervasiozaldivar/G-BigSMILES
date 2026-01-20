@@ -22,6 +22,10 @@ def mol_graph_to_rdkit_mol(mol_graph):
             return Chem.BondType.QUADRUPLE
 
     _DIR_MAP = {"/": Chem.BondDir.ENDUPRIGHT, "\\": Chem.BondDir.ENDDOWNRIGHT}
+    _CHIRAL_MAP = {
+        "@": Chem.ChiralType.CHI_TETRAHEDRAL_CCW,
+        "@@": Chem.ChiralType.CHI_TETRAHEDRAL_CW,
+    }
 
     mol = Chem.RWMol()
     graph_idx_to_mol_idx = {}
@@ -29,6 +33,9 @@ def mol_graph_to_rdkit_mol(mol_graph):
         atom = Chem.Atom(data["atomic_num"])
         atom.SetIsAromatic(data["aromatic"])
         atom.SetFormalCharge(data["charge"])
+        chiral = data.get("chiral", "")
+        if chiral in _CHIRAL_MAP:
+            atom.SetChiralTag(_CHIRAL_MAP[chiral])
 
         graph_idx_to_mol_idx[graph_idx] = mol.AddAtom(atom)
 

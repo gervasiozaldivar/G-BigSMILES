@@ -29,6 +29,7 @@ _STATIC_NAME = "static"
 _AROMATIC_NAME = "aromatic"
 _BOND_TYPE_NAME = "bond_type"
 _BOND_DIR_NAME = "bond_dir"
+_CHIRAL_NAME = "chiral"
 _NON_STATIC_ATTR = (_STOCHASTIC_NAME, _TERMINATION_NAME, _TRANSITION_NAME)
 
 
@@ -565,6 +566,11 @@ class GeneratingGraph:
             except AttributeError:
                 charge = float("nan")
 
+            try:
+                chiral = obj.chiral.generate_string(False) if obj.chiral is not None else ""
+            except AttributeError:
+                chiral = ""
+
             if "stochastic_obj" not in data or data["stochastic_obj"].stochastic_generation is None:
                 stochastic_vector = StochasticDistribution.get_empty_serial_vector()
                 stochastic_id = -1
@@ -596,6 +602,7 @@ class GeneratingGraph:
                     "atomic_num": atomic_num,
                     _AROMATIC_NAME: aromatic,
                     "charge": charge,
+                    _CHIRAL_NAME: chiral,
                     "stochastic_generation": stochastic_vector,
                     "mol_molecular_weight": mol_molecular_weight,
                     "total_molecular_weight": total_molecular_weight,
